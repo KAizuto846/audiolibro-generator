@@ -1,0 +1,9 @@
+flask>=3.0
+kokoro>=0.7.16
+soundfile>=0.12
+torch>=2.0
+pypdf2>=3.0
+ebooklib>=0.18
+beautifulsoup4>=4.12
+lxml>=5.0
+tqdm>=4.66

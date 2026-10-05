@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiolibro Generator</title>
+<style>
+/* ── Reset & Base ─────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg: #0f0f1a;
+  --surface: #1a1a2e;
+  --surface2: #242442;
+  --border: #2d2d5e;
+  --accent: #7c5cfc;
+  --accent2: #a78bfa;
+  --green: #34d399;
+  --orange: #fbbf24;
+  --red: #f87171;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --radius: 12px;
+}
+html{font-size:15px}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  line-height:1.6;
+}
+
+/* ── Layout ───────────────────────────────────────────── */
+.app{max-width:1100px;margin:0 auto;padding:1.5rem 2rem}
+
+/* ── Header ───────────────────────────────────────────── */
+.header{
+  display:flex;align-items:center;gap:1rem;
+  padding:1.5rem 0;border-bottom:1px solid var(--border);
+  margin-bottom:2rem;
+}
+.header-icon{
+  width:48px;height:48px;border-radius:var(--radius);
+  background:linear-gradient(135deg,var(--accent),#ec4899);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.5rem;
+}
+.header h1{
+  font-size:1.5rem;font-weight:700;letter-spacing:-.02em;
+  background:linear-gradient(135deg,var(--text),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.header .sub{font-size:.85rem;color:var(--text2);margin-top:-2px}
+
+/* ── Cards ────────────────────────────────────────────── */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1.5rem;
+  margin-bottom:1.5rem;
+}
+.card h2{
+  font-size:1.1rem;font-weight:600;margin-bottom:1rem;
+  display:flex;align-items:center;gap:.5rem;
+}
+.card h2 .badge{
+  font-size:.7rem;font-weight:500;padding:2px 8px;
+  border-radius:99px;background:var(--accent);color:#fff;
+}
+
+/* ── Upload Zone ──────────────────────────────────────── */
+.upload-zone{
+  border:2px dashed var(--border);border-radius:var(--radius);
+  padding:2.5rem 2rem;text-align:center;cursor:pointer;
+  transition:all .2s;position:relative;
+}
+.upload-zone:hover,.upload-zone.dragover{
+  border-color:var(--accent);background:rgba(124,92,252,.05);
+}
+.upload-zone .icon{font-size:2.5rem;margin-bottom:.5rem}
+.upload-zone p{color:var(--text2);font-size:.9rem}
+.upload-zone p strong{color:var(--accent2)}
+.upload-zone input[type=file]{display:none}
+.upload-zone .formatos{
+  display:flex;gap:.4rem;justify-content:center;margin-top:.6rem;
+}
+.upload-zone .formatos span{
+  font-size:.7rem;padding:2px 8px;border-radius:4px;
+  background:var(--surface2);color:var(--text2);
+}
+
+/* ── Book List ────────────────────────────────────────── */
+.book-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.8rem}
+.book-card{
+  background:var(--surface2);border-radius:8px;padding:1rem;
+  cursor:pointer;transition:all .15s;border:2px solid transparent;
+}
+.book-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.book-card.active{border-color:var(--accent);background:rgba(124,92,252,.08)}
+.book-card .name{font-weight:600;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.book-card .meta{font-size:.75rem;color:var(--text2);margin-top:4px}
+
+/* ── Generated books ──────────────────────────────────── */
+.gen-card{
+  background:var(--surface2);border-radius:8px;padding:1rem;
+  border:1px solid var(--border);
+}
+.gen-card .title{font-weight:600;margin-bottom:4px}
+.gen-card .stats{font-size:.75rem;color:var(--text2)}
+.gen-card .chapters{margin-top:.6rem;max-height:160px;overflow-y:auto}
+.gen-card .chapters::-webkit-scrollbar{width:4px}
+.gen-card .chapters::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.gen-chap{
+  display:flex;align-items:center;gap:.5rem;padding:4px 0;
+  font-size:.8rem;color:var(--text2);
+}
+.gen-chap audio{width:180px;height:28px}
+.gen-chap audio::-webkit-media-controls-panel{background:var(--surface)}
+.gen-chap .num{color:var(--accent2);font-weight:600;min-width:1.8rem}
+
+/* ── Controls ─────────────────────────────────────────── */
+.controls{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;
+  margin-bottom:1rem;
+}
+.control-group label{
+  display:block;font-size:.8rem;color:var(--text2);margin-bottom:4px;
+}
+.control-group select,.control-group input{
+  width:100%;padding:.5rem .7rem;border-radius:6px;
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);font-size:.9rem;
+}
+.control-group select option{background:var(--surface);color:var(--text)}
+.control-group input[type=range]{padding:0;border:none;accent-color:var(--accent)}
+.control-group .range-value{font-size:.8rem;color:var(--accent2);margin-top:2px;text-align:right}
+
+/* ── Buttons ──────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.6rem 1.2rem;border-radius:8px;font-size:.9rem;
+  font-weight:600;cursor:pointer;transition:all .15s;
+  border:none;
+}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-danger{background:var(--red);color:#fff}
+.btn-outline{
+  background:transparent;border:1px solid var(--border);color:var(--text2);
+}
+.btn-outline:hover{border-color:var(--accent);color:var(--text)}
+.btn-sm{padding:.4rem .8rem;font-size:.8rem}
+
+/* ── Chapter Select ───────────────────────────────────── */
+.chapter-list{max-height:250px;overflow-y:auto;margin-bottom:1rem}
+.chapter-list::-webkit-scrollbar{width:4px}
+.chapter-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.chapter-item{
+  display:flex;align-items:flex-start;gap:.5rem;
+  padding:.5rem .5rem;border-radius:6px;cursor:pointer;
+  transition:background .1s;
+}
+.chapter-item:hover{background:var(--surface2)}
+.chapter-item input[type=checkbox]{margin-top:3px;accent-color:var(--accent)}
+.chapter-item .info{flex:1;min-width:0}
+.chapter-item .cnum{font-weight:600;color:var(--accent2);font-size:.8rem}
+.chapter-item .cpreview{font-size:.8rem;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chapter-item .cmeta{font-size:.7rem;color:var(--text2);opacity:.7}
+
+/* ── Progress ─────────────────────────────────────────── */
+.progress-bar{
+  height:6px;background:var(--surface2);border-radius:99px;
+  overflow:hidden;margin:.5rem 0;
+}
+.progress-fill{
+  height:100%;background:linear-gradient(90deg,var(--accent),#ec4899);
+  border-radius:99px;transition:width .3s ease;width:0%;
+}
+.progress-info{
+  display:flex;justify-content:space-between;
+  font-size:.8rem;color:var(--text2);margin-bottom:4px;
+}
+.progress-status{font-size:.85rem;color:var(--text2);margin-bottom:.5rem}
+.progress-status .ok{color:var(--green)}
+.progress-status .err{color:var(--red)}
+
+/* ── Result ────────────────────────────────────────────── */
+.result-card{
+  background:linear-gradient(135deg,rgba(52,211,153,.05),rgba(124,92,252,.05));
+  border-color:var(--green);
+  display:none;
+}
+.result-card.show{display:block}
+.result-card .stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin:.8rem 0;
+}
+.stat-item{text-align:center}
+.stat-item .num{font-size:1.8rem;font-weight:700;color:var(--green)}
+.stat-item .label{font-size:.75rem;color:var(--text2)}
+
+/* ── Empty state ──────────────────────────────────────── */
+.empty{
+  text-align:center;padding:2rem;color:var(--text2);
+}
+.empty .icon{font-size:2rem;margin-bottom:.5rem}
+
+/* ── Tabs ──────────────────────────────────────────────── */
+.tabs{display:flex;gap:0;margin-bottom:1rem;border-bottom:1px solid var(--border)}
+.tab{
+  padding:.5rem 1.2rem;cursor:pointer;font-size:.85rem;font-weight:500;
+  color:var(--text2);border-bottom:2px solid transparent;transition:all .15s;
+}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent2);border-bottom-color:var(--accent2)}
+
+/* ── Toast ─────────────────────────────────────────────── */
+.toast{
+  position:fixed;bottom:2rem;right:2rem;
+  padding:.8rem 1.2rem;border-radius:8px;background:var(--surface2);
+  border:1px solid var(--border);font-size:.85rem;
+  transform:translateY(100px);opacity:0;
+  transition:all .3s;z-index:100;
+}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-color:var(--green)}
+.toast.error{border-color:var(--red)}
+
+/* ── Responsive ───────────────────────────────────────── */
+@media(max-width:768px){
+  .app{padding:1rem}
+  .controls{grid-template-columns:1fr}
+  .result-card .stats{grid-template-columns:1fr}
+  .gen-chap{flex-wrap:wrap}
+  .gen-chap audio{width:100%}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-icon">🎧</div>
+    <div>
+      <h1>Audiolibro Generator</h1>
+      <div class="sub">Kokoro TTS · Genera audiolibros desde TXT, EPUB o PDF</div>
+    </div>
+  </div>
+
+  <!-- Upload Zone -->
+  <div class="card">
+    <h2>📤 Subir libro</h2>
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">📂</div>
+      <p>Arrastra un archivo aquí o <strong>haz clic para buscar</strong></p>
+      <div class="formatos">
+        <span>TXT</span><span>EPUB</span><span>PDF</span>
+      </div>
+      <input type="file" id="fileInput" accept=".txt,.epub,.pdf">
+    </div>
+  </div>
+
+  <!-- Tabs: Disponibles / Generados -->
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" data-tab="source" onclick="switchTab('source')">📖 Libros disponibles</div>
+      <div class="tab" data-tab="generated" onclick="switchTab('generated')">🎵 Audiolibros generados</div>
+    </div>
+
+    <!-- Source books -->
+    <div id="tab-source">
+      <div id="bookList"><div class="empty"><div class="icon">📚</div><p>Sube un libro para empezar</p></div></div>
+    </div>
+
+    <!-- Generated books -->
+    <div id="tab-generated" style="display:none">
+      <div id="genList"><div class="empty"><div class="icon">🎵</div><p>Aún no hay audiolibros generados</p></div></div>
+    </div>
+  </div>
+
+  <!-- Preview & Controls -->
+  <div class="card" id="previewCard" style="display:none">
+    <h2>📖 <span id="previewTitle">—</span> <span class="badge" id="previewCount">0 capítulos</span></h2>
+    
+    <!-- Chapter list -->
+    <div id="chapterList" class="chapter-list"></div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="control-group">
+        <label>🎤 Voz</label>
+        <select id="voiceSelect">
+          <option value="ef_dora">ef_dora (Femenina · Default)</option>
+          <option value="em_alex">em_alex (Masculina · Dramática)</option>
+          <option value="em_santa">em_santa (Masculina · Cálida)</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>⏱ Velocidad</label>
+        <input type="range" id="speedRange" min="0.7" max="1.3" step="0.05" value="1.0">
+        <div class="range-value" id="speedDisplay">1.0×</div>
+      </div>
+      <div class="control-group" style="display:flex;flex-direction:column;justify-content:flex-end">
+        <label> </label>
+        <button class="btn btn-primary" id="generateBtn" onclick="startGeneration()">
+          🚀 Generar audiolibro
+        </button>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div id="progressArea" style="display:none">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-info">
+        <span id="progressText">Iniciando...</span>
+        <span id="progressTime">—</span>
+      </div>
+      <div class="progress-status" id="progressStatus"></div>
+    </div>
+
+    <!-- Result -->
+    <div class="result-card" id="resultCard">
+      <h3 style="color:var(--green)">✅ ¡Audiolibro generado!</h3>
+      <div class="stats">
+        <div class="stat-item"><div class="num" id="resultChaps">0</div><div class="label">Capítulos</div></div>
+        <div class="stat-item"><div class="num" id="resultTime">0s</div><div class="label">Tiempo total</div></div>
+        <div class="stat-item"><div class="num" id="resultErrors">0</div><div class="label">Errores</div></div>
+      </div>
+      <div id="resultChapters"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api';
+let selectedFile = null;
+let previewData = null;
+let pollInterval = null;
+
+// ── File Upload ────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+async function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['txt','epub','pdf'].includes(ext)) { showToast('Formato no soportado', 'error'); return; }
+  
+  const form = new FormData();
+  form.append('file', file);
+  
+  try {
+    const res = await fetch(`${API}/upload`, {method:'POST', body:form});
+    const data = await res.json();
+    if (data.ok) {
+      selectedFile = file.name;
+      await loadBooks();
+      await previewBook(file.name);
+      showToast(`📄 ${file.name} subido`, 'success');
+    } else {
+      showToast(data.error || 'Error al subir', 'error');
+    }
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
+// ── Tab Switching ──────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.getElementById('tab-source').style.display = name === 'source' ? 'block' : 'none';
+  document.getElementById('tab-generated').style.display = name === 'generated' ? 'block' : 'none';
+  if (name === 'generated') loadGenerated();
+  if (name === 'source') loadBooks();
+}
+
+// ── Load Books ─────────────────────────────────────────
+async function loadBooks() {
+  try {
+    const res = await fetch(`${API}/libros`);
+    const data = await res.json();
+    renderBooks(data.textos);
+    if (data.generados?.length) renderGenerated(data.generados);
+  } catch(e) { /* ignore */ }
+}
+
+function renderBooks(textos) {
+  const container = document.getElementById('bookList');
+  if (!textos.length) {
+    container.innerHTML = '<div class="empty"><div class="icon">📚</div><p>Sube un libro para empezar</p></div>';
+    return;
+  }
+  container.innerHTML = '<div class="book-grid">' + textos.map(t => `
+    <div class="book-card${selectedFile === t.nombre ? ' active' : ''}" onclick="previewBook('${t.nombre}')">
+      <div class="name">${t.nombre}</div>
+      <div class="meta">${t.formato.toUpperCase()} · ${t.tamano}</div>
+    </div>
+  `).join('') + '</div>';
+}
+
+// ── Preview Book ──────────────────────────────────────
+async function previewBook(filename) {
+  selectedFile = filename;
+  document.querySelectorAll('.book-card').forEach(c => c.classList.toggle('active', c.textContent.trim().startsWith(filename)));
+  
+  try {
+    const res = await fetch(`${API}/preview`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({archivo: filename})
+    });
+    const data = await res.json();
+    if (!data.ok) { showToast(data.error || 'Error al previsualizar', 'error'); return; }
+    
+    previewData = data;
+    document.getElementById('previewCard').style.display = 'block';
+    document.getElementById('previewTitle').textContent = data.titulo;
+    document.getElementById('previewCount').textContent = `${data.total_capitulos} capítulos`;
+    
+    const chapterList = document.getElementById('chapterList');
+    chapterList.innerHTML = data.capitulos.map((c, i) => `
+      <div class="chapter-item" onclick="toggleChapter(${i})">
+        <input type="checkbox" id="chk_${i}" checked onchange="event.stopPropagation()">
+        <div class="info">
+          <div class="cnum">Capítulo ${c.num}</div>
+          <div class="cpreview">${c.preview}</div>
+          <div class="cmeta">${c.chars} caracteres · ~${formatTime(c.estimado_seg)}</div>
+        </div>
+      </div>
+    `).join('');
+    
+    document.getElementById('resultCard').classList.remove('show');
+    document.getElementById('generateBtn').disabled = false;
+    
+  } catch(e) { showToast('Error al previsualizar', 'error'); }
+}
+
+function toggleChapter(idx) {
+  const chk = document.getElementById(`chk_${idx}`);
+  chk.checked = !chk.checked;
+}
+
+// ── Speed Slider ──────────────────────────────────────
+document.getElementById('speedRange').addEventListener('input', function() {
+  document.getElementById('speedDisplay').textContent = this.value + '×';
+});
+
+// ── Generate ──────────────────────────────────────────
+async function startGeneration() {
+  if (!previewData) return;
+  
+  const selected = [];
+  previewData.capitulos.forEach((c, i) => {
+    const chk = document.getElementById(`chk_${i}`);
+    if (chk && chk.checked) selected.push(c.num);
+  });
+  
+  if (!selected.length) { showToast('Selecciona al menos un capítulo', 'error'); return; }
+  
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Generando...';
+  
+  document.getElementById('progressArea').style.display = 'block';
+  document.getElementById('resultCard').classList.remove('show');
+  
+  try {
+    const res = await fetch(`${API}/generar`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        archivo: selectedFile,
+        voz: document.getElementById('voiceSelect').value,
+        velocidad: parseFloat(document.getElementById('speedRange').value),
+        capitulos: selected
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) { showToast(data.error, 'error'); btn.disabled = false; btn.innerHTML = '🚀 Generar audiolibro'; return; }
+    
+    pollInterval = setInterval(() => pollProgress(data.job_id), 800);
+    
+  } catch(e) { showToast('Error de conexión', 'error'); btn.disabled = false; btn.innerHTML = '🚀 Generar audiolibro'; }
+}
+
+async function pollProgress(jobId) {
+  try {
+    const res = await fetch(`${API}/progreso/${jobId}`);
+    const prog = await res.json();
+    
+    if (prog.error) { clearInterval(pollInterval); showToast(prog.error, 'error'); finishGen(); return; }
+    
+    const fill = document.getElementById('progressFill');
+    fill.style.width = (prog.porcentaje || 0) + '%';
+    document.getElementById('progressText').textContent = 
+      prog.actual ? `🎤 ${prog.actual}` : 'Iniciando...';
+    document.getElementById('progressTime').textContent = prog.tiempo || '—';
+    document.getElementById('progressStatus').innerHTML = 
+      `${prog.completados}/${prog.total} capítulos`;
+    
+    if (prog.estado === 'completado' && prog.meta) {
+      clearInterval(pollInterval);
+      showResult(prog.meta);
+    } else if (prog.estado === 'error') {
+      clearInterval(pollInterval);
+      showToast(prog.error || 'Error durante generación', 'error');
+      finishGen();
+    }
+  } catch(e) { /* ignore polling errors */ }
+}
+
+function showResult(meta) {
+  document.getElementById('resultCard').classList.add('show');
+  document.getElementById('resultChaps').textContent = meta.capitulos;
+  document.getElementById('resultTime').textContent = formatTime(meta.tiempo_total_s);
+  document.getElementById('resultErrors').textContent = meta.errores?.length || 0;
+  
+  const container = document.getElementById('resultChapters');
+  if (meta.archivos && meta.archivos.length) {
+    container.innerHTML = '<h4 style="margin:.5rem 0;font-size:.9rem;color:var(--text2)">🎧 Capítulos generados:</h4>' +
+      meta.archivos.map((a, i) => {
+        const relPath = a.replace(/^.*\/libros\//, '');
+        return `<div class="gen-chap"><span class="num">${i+1}</span><audio controls src="${API}/audio/${relPath}"></audio></div>`;
+      }).join('');
+  }
+  
+  finishGen();
+  showToast(`✅ ${meta.capitulos} capítulos generados`, 'success');
+  loadGenerated();
+}
+
+function finishGen() {
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = false;
+  btn.innerHTML = '🚀 Generar audiolibro';
+}
+
+// ── Generated Books ───────────────────────────────────
+async function loadGenerated() {
+  try {
+    const res = await fetch(`${API}/libros`);
+    const data = await res.json();
+    if (data.generados) renderGenerated(data.generados);
+  } catch(e) { /* ignore */ }
+}
+
+function renderGenerated(generados) {
+  const container = document.getElementById('genList');
+  if (!generados.length) {
+    container.innerHTML = '<div class="empty"><div class="icon">🎵</div><p>Aún no hay audiolibros generados</p></div>';
+    return;
+  }
+  
+  container.innerHTML = '<div style="display:grid;gap:.8rem">' + generados.map(g => {
+    const m = g.meta || {};
+    return `<div class="gen-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="title">📖 ${m.titulo || g.id}</div>
+          <div class="stats">${m.capitulos || '?'} capítulos · ${formatTime(m.tiempo_total_s || 0)} · ${formatBytes(g.tamano_total || 0)}</div>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="deleteBook('${g.id}')">🗑</button>
+      </div>
+      <div class="chapters">
+        ${(g.capitulos || []).map((a, i) => {
+          const relPath = a.replace(/^.*\/libros\//, '');
+          return `<div class="gen-chap"><span class="num">${i+1}</span><audio controls src="${API}/audio/${relPath}"></audio></div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+async function deleteBook(id) {
+  if (!confirm(`¿Eliminar "${id}" definitivamente?`)) return;
+  try {
+    const res = await fetch(`${API}/eliminar/${id}`, {method:'DELETE'});
+    const data = await res.json();
+    if (data.ok) { showToast('🗑 Eliminado', 'success'); loadGenerated(); }
+  } catch(e) { showToast('Error al eliminar', 'error'); }
+}
+
+// ── Utilities ──────────────────────────────────────────
+function formatTime(s) {
+  if (!s) return '0s';
+  const m = Math.floor(s / 60);
+  s = s % 60;
+  if (m) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const units = ['B','KB','MB','GB'];
+  let i = 0;
+  let b = bytes;
+  while (b >= 1024 && i < units.length - 1) { b /= 1024; i++; }
+  return `${b.toFixed(1)} ${units[i]}`;
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show ${type || ''}`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Init ───────────────────────────────────────────────
+loadBooks();
+loadGenerated();
+</script>
+</body>
+</html>
